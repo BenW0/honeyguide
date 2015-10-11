@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Honeyguide Usage Instructions</title>
+</head>
+<body>
+<h1>Honeyguide Usage Instructions</h1>
+
+<p>Honeyguide is an application which inserts custom image stacks into a Creation Workshop CWS file. Why Honeyguide?
+    See <a href="https://en.wikipedia.org/wiki/Honeyguide">Honeyguide</a> and
+    <a href="https://en.wikipedia.org/wiki/Brood_parasite">Brood Parasite</a></p>
+
+<p>You need three things to make this work:</p>
+
+<ol>
+    <li><b>A "Template" CWS file</b>. This file is one you generated in CreationWorkshop that provides the settings and structure
+        needed for Honeyguide to make a functioning CWS file for your system. See below for instructions on generating
+        the template.</li>
+    <li><b>A set of images</b>. This "stack" of images are the images which will be inserted into the CWS file, replacing those
+        saved in the template file. The images must be in the same folder and sequentially numbered. Padding zeros are
+        optional. To import, select the first image in the sequence in the dialog.</li>
+    <li><b>An output filename</b>. After Honeyguide runs, the name of the output file cannot be changed, or CreationWorkshop
+        fails to detect the embedded images.</li>
+</ol>
+
+<p>After running Honeyguide, import your new CWS file into CreationWorkshop using File -> Open (you may need to select
+CreationWorkshop Scene Files from the list of file types). Generally, your images are visible in the Slice View pane.</p>
+
+<h3>Generating a Template CWS</h3>
+<p>To generate a template CWS file for use in Honeyguide, following these instructions:</p>
+<ol>
+    <li>Open CreationWorkshop. Import and position a dummy STL which is at
+    least as tall as your image stack. This object will not appear in your final print.</li>
+    <li>Check CreationWorkshop's slicing settings, machine settings, and display resolution. These settings will
+        be baked into the template CWS and all derived CWS files and cannot be changed afterwards.</li>
+    <li>In addition to your specific settings, make sure that your selected slicing profile has "Export Images & GCode"
+        checked</li>
+    <li>Slice your scene using the Cake button and your chosen slicing profile</li>
+    <li>Go to File -> Save As to save your new template CWS.</li>
+
+</ol>
+<p>Once generated, the same Template can be used for multiple runs of Honeyguide.</p>
+
+<h3>Advanced Options</h3>
+Clicking the Show Options button brings up some additional configuration options for the honeyguide algorithm.
+<ul>
+    <li><b>Negate Input Images</b> inverts the pixel value of the image prior to compositing. This is useful if your
+        image source has a white background and black object. Default: Unchecked.</li>
+    <li><b>Threshold</b> performs a "threshold" operation on the image before compositing. This means all pixels above
+        a certain intensity (given in <b>Threshold Level</b>) are painted white, and all others are black, effectively
+        removing all shades of gray. Default: Unchecked</li>
+    <li><b>Just Replicate First Image</b> causes the code to re-use the image selected in the top dialog for every layer,
+        producing an output CWS containing the same frame repeated over and over again, for as many layers as the template
+        CWS contains. Default: Unchecked</li>
+    <li><b>ImageMagick Install Folder</b> is needed on some systems where ImageMagick is not in your PATH environment
+        variable or where other tools have the same name (specifically "convert.exe" on Windows). If errors occur during
+        processing, try setting this field to the folder ImageMagick was installed to. Default: Empty</li>
+</ul>
+
+<h3>Technical Notes</h3>
+<p>Honeyguide never re-scales the images you provide. They are placed, centered, on a black canvas that matches the resolution
+of your projector screen (as recorded in the Template CWS). If they are larger than your projector screen, they will be
+cropped. If they are smaller, they are padded with black to match the resolution of the projector.</p>
+
+<p>If you use a Honeyguide-generated CWS file on a projector which is at a different resolution than that used
+when generating the template CWS file, images may appear warped or off-center, due to the way CreationWorkshop
+handles pre-generates slices.</p>
+
+<p>If you really want to know what's going on: CWS files are simply Zip archives which can contain the image slices,
+STL model, GCode, and some additional metadata. Honeyguide replaces just the images in the template CWS, leaving
+everything else alone, and zips the result back into a new CWS. CWS files do not have to include image slices,
+however; hence the importance of checking "Export Images and GCode" in the steps given above.</p>
+
+<p><b>Security Note:</b> This code uses a variety of <i>very</i> insecure Python commands. Don't dream of doing anything
+secure with this program!</p>
+
+<h3>Command Line Usage</h3>
+<p><b>This is not implemented yet</b></p>
+<p>To use Honeyguide from the command line, do the following:</p>
+<code>python [path to Honeyguide]/main.py [template CWS] [first input image] [output CWS]</code>
+<p>where</p>
+<p><b><code>&nbsp&nbsp&nbsp&nbsp[path to Honeyguide]</code></b> is the path to the location of the Honeyguide Python program</p>
+<p><b><code>&nbsp&nbsp&nbsp&nbsp[Template CWS]</code></b> is the template CWS file (escape with quotes if the path contains spaces)</p>
+<p><b><code>&nbsp&nbsp&nbsp&nbsp[first input image]</code></b> is the location of the first image in the set of images you want to insert.</p>
+<p><b><code>&nbsp&nbsp&nbsp&nbsp[output CWS]</code></b> is the location of the CWS file to export.</p>
+All arguments are required.
+
+<h3>License</h3>
+
+<p>(c) 2015 Ben Weiss</p>
+<p>License: MIT License:</p>
+<p></p>
+<p>Copyright (c) 2015 Ben Weiss; parts (c) 2015 Ben Weiss, University of Washington</p>
+<p></p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+
+<p>The above copyright notice and this permission notice shall be included
+   in all copies or substantial portions of the Software.</p>
+
+<p>  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+    THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.</p>
+
+<p>Source: Sample code borrowed from the folowing places:</p>
+<ul>
+    <li>http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/minimal-app.html</li>
+    <li>http://www.tkdocs.com/tutorial/firstexample.html</li>
+    <li>https://docs.python.org/2.7/library/configparser.html</li>
+</ul>
+</body>
+</html>
