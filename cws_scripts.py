@@ -574,9 +574,9 @@ class Honeyguide:
             if "1.#INF" in out:     # This means no difference between the two images
                 # The two are identical. Delete the diff image.
                 os.remove(os.path.join(diff_dir, diffname))
-                samecount = samecount + 1
+                samecount += 1
             else:
-                diffcount = diffcount + 1
+                diffcount += 1
                 self._log("Found differences: %s" % diffname)
 
             # figure out the next filenames based on the current ones.
@@ -589,6 +589,7 @@ class Honeyguide:
             same = False
 
         # check for gcode changes
+        # TODO: Check these functions...I never actually tested them.
         gcode1 = glob.glob(os.path.join(cws_dir1, "*.gcode"))
         gcode2 = glob.glob(os.path.join(cws_dir2, "*.gcode"))
         if len(gcode1) != 1 or len(gcode2) != 1:

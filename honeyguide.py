@@ -37,7 +37,6 @@
 #
 # TODO:
 #  - Document advanced options in Instructions
-#  - Implement command line mode
 #  - Have the app log capture python errors, if possible
 
 
@@ -90,7 +89,7 @@ class Application(ttk.Frame):
         self.threshold = tk.BooleanVar()
         self.threshold.set(False)
         self.threshold_val = tk.StringVar()
-        self.threshold_val.set("128")
+        self.threshold_val.set("50")
         self.replicate_first = tk.BooleanVar()
         self.replicate_first.set(False)
         self.imagemagick_path = tk.StringVar()
@@ -168,7 +167,7 @@ class Application(ttk.Frame):
 
         subframe = ttk.Frame(self.adv_frame)
         subframe.grid(column=0, row=2, sticky=tk.W)
-        ttk.Label(subframe, text="Threshold Level (0-255):").grid(column=0, row=0, padx=8, pady=4, sticky=tk.W)
+        ttk.Label(subframe, text="Threshold Level (0-100%):").grid(column=0, row=0, padx=8, pady=4, sticky=tk.W)
         ttk.Entry(subframe, textvariable=self.threshold_val, validate='all', validatecommand=threshValCmd)\
             .grid(column=1, row=0, padx=8, pady=4, sticky=tk.W)
 
@@ -316,7 +315,7 @@ class Application(ttk.Frame):
         self.thresh_ok = False
         if val.strip().isdigit():
             i = int(val.strip())
-            if 0 <= i <= 255:
+            if 0 <= i <= 100:
                 self.thresh_ok = True
         self.evaluate_go()
         return True
@@ -358,7 +357,7 @@ class Application(ttk.Frame):
         self.cws.negate = self.negate.get()
         self.cws.threshold = self.threshold.get()
         self.cws.threshold_val = int(self.threshold_val.get().strip())
-        self.cws.replicate_first = self.replicate_first.get()
+        self.cws.repeat_first = self.replicate_first.get()
         self.cws.imagemagick_path = self.imagemagick_path.get()
 
         # Open the window and launch the job.

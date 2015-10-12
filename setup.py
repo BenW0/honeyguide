@@ -1,10 +1,13 @@
 __author__ = 'Ben'
 
+# Requires the module py2exe: http://www.py2exe.org
+# To build the program into exe's, use "python setup.py py2exe"
+
 from distutils.core import setup
 import py2exe
 
 setup(
-    version="0.1",
+    version="0.11",
     description="Honeyguide: CWS image stack replacement program.",
     name="Honeyguide",
 
