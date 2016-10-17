@@ -10,3 +10,9 @@ and distributed against ImageMagick-0.0.3-4-portable-Q16-x64.
 
 To build a Windows executable, the setup module can be used. It requires Py2EXE (py2exe.org)
 
+## Change log
+* 0.12
+** Mask functionality
+** Incorporates ImageMagick in the distributed version
+** Installer for the py2exe result (using Inno Installer)
+** Moved log and config files to %appdata% on Windows and ~/.Honeyguide on other platforms

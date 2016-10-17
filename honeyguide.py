@@ -441,13 +441,13 @@ class Application(ttk.Frame):
         config.set('Honeyguide', 'ImageMagickPath', self.imagemagick_path.get())
         #config.set('Honeyguide', 'Window', self._root().winfo_geometry())
 
-        with open("settings.ini", "wb") as outfile:
+        with open(os.path.join(cws_scripts.settings_path, "settings.ini"), "wb") as outfile:
             config.write(outfile)
 
     def load_settings(self):
         config = cp.SafeConfigParser()
         try:
-            config.read("settings.ini")
+            config.read(os.path.join(cws_scripts.settings_path, "settings.ini"))
 
             self.template_cws.set(config.get('Honeyguide', 'TemplateCWS'))
             self.input_image.set(config.get('Honeyguide', 'InputImages'))
@@ -494,7 +494,7 @@ class Application(ttk.Frame):
 
 
 def main():
-    with open("app.log", "w") as logfile:
+    with open(os.path.join(cws_scripts.settings_path, "app.log"), "w") as logfile:
         app = Application(logfile=logfile)
         app.mainloop()
 

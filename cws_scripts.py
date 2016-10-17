@@ -52,6 +52,17 @@ on_posix = 'posix' in os.name
 re_match_path = re.compile(".*[\\\\/]+(?!.*[\\\\/])")
 re_match_last_number = re.compile(r"([0-9]+)(?!.*[0-9])")
 
+# Find a folder where we can put settings files and logs on whatever platform we find ourselves on. Thanks to
+# http://stackoverflow.com/questions/21761982/creating-a-folder-in-the-appdata-roaming-directory-python
+try:
+    settings_path = os.path.join(os.environ['APPDATA'], "Honeyguide")
+except:
+    # on some kind of *nix
+    settings_path = os.path.join(os.path.expanduser('~'), ".Honeyguide")
+if not os.path.exists(settings_path):
+    os.makedirs(settings_path)
+
+
 class Honeyguide:
 
     def __init__(self, logfile=None):
@@ -699,6 +710,7 @@ class Honeyguide:
             with open(os.path.join(diffdir, os.path.split(file1)[1]), "w") as fout:
                 fout.writelines(diff)
             return False
+
 
 # Run some checks to see if my cws files match a reference set
 if __name__ == "__main__":

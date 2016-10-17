@@ -10,3 +10,4 @@ settings.ini
 .idea/
 test.cws
 ImageMagick/
+installer/*.exe
