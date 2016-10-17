@@ -45,6 +45,10 @@ CreationWorkshop Scene Files from the list of file types). Generally, your image
 <h3>Advanced Options</h3>
 Clicking the Show Options button brings up some additional configuration options for the honeyguide algorithm.
 <ul>
+    <li><b>Image Mask</b> causes a mask image to be multiplied by the image to be displayed on the projector. This can
+        be used to correct for irregularities in projection brightness. In the mask image, a white pixel represents
+        "no change" to the source image, gray pixels darken the source image, and a black pixel forces the output image
+        to black at that point.</li>
     <li><b>Negate Input Images</b> inverts the pixel value of the image prior to compositing. This is useful if your
         image source has a white background and black object. Default: Unchecked.</li>
     <li><b>Threshold</b> performs a "threshold" operation on the image before compositing. This means all pixels above
@@ -67,7 +71,7 @@ cropped. If they are smaller, they are padded with black to match the resolution
 when generating the template CWS file, images may appear warped or off-center, due to the way CreationWorkshop
 handles pre-generates slices.</p>
 
-<p>If you really want to know what's going on: CWS files are simply Zip archives which can contain the image slices,
+<p>Additional Information: CWS files are simply Zip archives which can contain the image slices,
 STL model, GCode, and some additional metadata. Honeyguide replaces just the images in the template CWS, leaving
 everything else alone, and zips the result back into a new CWS. CWS files do not have to include image slices,
 however; hence the importance of checking "Export Images and GCode" in the steps given above.</p>

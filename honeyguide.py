@@ -38,6 +38,11 @@
 # TODO:
 #  - Document advanced options in Instructions
 #  - Have the app log capture python errors, if possible
+#
+# Future Features:
+#  - Add image resizing
+#  - Add output CWS preview
+#  - Add extracting slices from CWS files
 
 
 __author__ = 'Ben Weiss'
@@ -60,6 +65,7 @@ class Application(ttk.Frame):
         self.template_slices = 0
         self.image_slices = 0
         self.cws = cws_scripts.Honeyguide(logfile)
+        self.imagemagick_command = 'magick'
 
         ttk.Frame.__init__(self, master, padding="3 3 12 12")
         self.master.title('Honeyguide')
@@ -84,21 +90,30 @@ class Application(ttk.Frame):
 
         self.advanced_title = tk.StringVar()
         self.advanced_title.set("Show Options")
+
+        self.use_mask = tk.BooleanVar()
+        self.mask_image = tk.StringVar()
+        self.mask_message = tk.StringVar()
+
         self.negate = tk.BooleanVar()
         self.negate.set(False)
+
         self.threshold = tk.BooleanVar()
         self.threshold.set(False)
         self.threshold_val = tk.StringVar()
         self.threshold_val.set("50")
+
         self.replicate_first = tk.BooleanVar()
         self.replicate_first.set(False)
-        self.imagemagick_path = tk.StringVar()
+
+        self.imagemagick_path = tk.StringVar(value=os.path.abspath("./ImageMagick"))
         self.imagemagick_message = tk.StringVar()
 
         # Text validators
         templateValCmd = self.register(self.template_validate)
         imageValCmd = self.register(self.image_validate)
         outputValCmd = self.register(self.output_validate)
+        maskValCmd = self.register(self.mask_validate)
         threshValCmd = self.register(self.threshold_validate)
         impValCmd = self.register(self.imagemagick_path_validate)
 
@@ -160,23 +175,42 @@ class Application(ttk.Frame):
         self.adv_frame = ttk.LabelFrame(self, text="Advanced Options")
         self.adv_frame.grid(column=0, row=8, columnspan=3, sticky=tk.E+tk.W)
 
-        ttk.Checkbutton(self.adv_frame, text="Negate Input Images", variable=self.negate)\
+
+        # Image Mask
+        ttk.Checkbutton(self.adv_frame, text="Image Mask", variable=self.use_mask)\
             .grid(column=0, row=0, padx=3, pady=4, sticky=tk.W)
-        ttk.Checkbutton(self.adv_frame, text="Threshold", variable=self.threshold)\
-            .grid(column=0, row=1, padx=3, pady=4, sticky=tk.W)
 
         subframe = ttk.Frame(self.adv_frame)
-        subframe.grid(column=0, row=2, sticky=tk.W)
-        ttk.Label(subframe, text="Threshold Level (0-100%):").grid(column=0, row=0, padx=8, pady=4, sticky=tk.W)
+        subframe.grid(column=0, row=1, sticky=tk.W)
+        ttk.Label(subframe, text="Mask Image:").grid(column=0, row=3, sticky=tk.E)
+
+        self.mask_entry = ttk.Entry(subframe, width=35, textvariable=self.mask_image, validate='focusout',
+                                     validatecommand=maskValCmd)
+        self.mask_entry.grid(column=1, row=3, sticky=tk.W+tk.E)
+
+        ttk.Button(subframe, text="...", command=self.mask_dialog, width=3).grid(column=2, row=3, sticky=tk.W)
+
+        self.mask_label = ttk.Label(subframe, textvariable=self.mask_message)
+        self.mask_label.grid(column=3, row=3, columnspan=2, sticky=tk.W+tk.E)
+
+
+        ttk.Checkbutton(self.adv_frame, text="Negate Input Images", variable=self.negate)\
+            .grid(column=0, row=2, padx=3, pady=4, sticky=tk.W)
+        ttk.Checkbutton(self.adv_frame, text="Threshold", variable=self.threshold)\
+            .grid(column=0, row=3, padx=3, pady=4, sticky=tk.W)
+
+        subframe = ttk.Frame(self.adv_frame)
+        subframe.grid(column=0, row=4, sticky=tk.W)
+        ttk.Label(subframe, text="    Threshold Level (0-100%):").grid(column=0, row=0, padx=8, pady=4, sticky=tk.W)
         ttk.Entry(subframe, textvariable=self.threshold_val, validate='all', validatecommand=threshValCmd)\
             .grid(column=1, row=0, padx=8, pady=4, sticky=tk.W)
 
         ttk.Checkbutton(self.adv_frame, text="Just Replicate First Image", variable=self.replicate_first,
                         command=self.image_validate)\
-            .grid(column=0, row=4, padx=3, pady=4, sticky=tk.W)
+            .grid(column=0, row=5, padx=3, pady=4, sticky=tk.W)
 
         subframe = ttk.Frame(self.adv_frame)
-        subframe.grid(column=0, row=5, sticky=tk.W)
+        subframe.grid(column=0, row=6, sticky=tk.W)
         ttk.Label(subframe, text="ImageMagick Install Folder:").grid(column=0, row=0, padx=3, pady=4)
         ttk.Entry(subframe, textvariable=self.imagemagick_path, validate='focusout', validatecommand=impValCmd)\
             .grid(column=1, row=0, padx=3, pady=4, sticky=tk.W)
@@ -238,6 +272,18 @@ class Application(ttk.Frame):
         if fname != "":
             self.output_cws.set(fname)
             self.output_validate()
+
+    def mask_dialog(self):
+        cur = self.mask_image.get()
+        defdir = ''
+        if cur != '':
+            defdir = self.cws.get_path(cur)
+        fname = tkFileDialog.askopenfilename(filetypes=[('Image Files', '.png;.bmp;.tif;.tiff'), ('All Files', '.*') ],
+                                             title="Select Mask Image", parent=self, initialdir=defdir)
+
+        if fname != "":
+            self.mask_image.set(fname)
+            self.mask_validate()
 
     def imagemagick_dialog(self):
         def_dir = self.imagemagick_path.get()
@@ -310,6 +356,15 @@ class Application(ttk.Frame):
         self.evaluate_go()
         return True
 
+    def mask_validate(self):
+        """Validates whether the image selected is acceptable for use. Called both as the input_image validator
+        and as the command for the Replicate First checkbox."""
+        self.mask_ok, message = self.cws.mask_check(self.mask_image.get())
+        self.mask_message.set(message)
+        self.mask_entry.xview(len(self.mask_image.get()))
+        self.evaluate_go()
+        return True
+
     def threshold_validate(self):
         val = self.threshold_val.get()
         self.thresh_ok = False
@@ -322,7 +377,9 @@ class Application(ttk.Frame):
 
     def imagemagick_path_validate(self):
         dirname = self.imagemagick_path.get()
-        if os.path.exists(os.path.join(dirname, "convert")) or os.path.exists(os.path.join(dirname, "convert.exe")):
+        # ImageMagick version 7, with almost no documentation, changes the executable from "convert" to "magick"...
+        # but now I'm dependent on version 7 features, so don't run if we don't have the magick
+        if os.path.exists(os.path.join(dirname, "magick")) or os.path.exists(os.path.join(dirname, "magick.exe")):
             self.imagemagick_message.set("OK")
             self.imagemagick_ok = True
         elif dirname == "":
@@ -336,29 +393,32 @@ class Application(ttk.Frame):
 
     def evaluate_go(self):
         if self.image_ok and self.imagemagick_ok and self.output_ok and self.template_ok and (not self.threshold.get()
-                or self.thresh_ok):
+                or self.thresh_ok) and (not self.use_mask.get() or self.mask_ok):
             self.go_button.state(["!disabled"])
         else:
             self.go_button.state(["disabled"])
 
     def go(self):
-        self.log("Args:\nTemplate %s\nImage %s\nOutput %s\nNegate %s\nThresh %s Val %i\nReplicate %s\nIMPath %s" %
+        self.log("Args:\nTemplate %s\nImage %s\nOutput %s\nUse Mask %s\nMaskImage %s\nNegate %s\nThresh %s Val %i\nReplicate %s\nIMPath %s" %
               (self.template_cws.get(), self.input_image.get(), self.output_cws.get(),
+               self.use_mask.get(), self.mask_image.get(),
                self.negate.get(), self.threshold.get(), int(self.threshold_val.get().strip()), self.replicate_first.get(),
                self.imagemagick_path.get()))
-        thresh_val = 128
+        thresh_val = 50
         if self.threshold.get():
             try:
                 thresh_val = int(self.threshold_val.get().strip())
             except:
-                self.log("Error parsing Threshold value. Using 128 as default.")
+                self.log("Error parsing Threshold value. Using 50 as default.")
 
         # Load these settings into the CWS
         self.cws.negate = self.negate.get()
         self.cws.threshold = self.threshold.get()
         self.cws.threshold_val = int(self.threshold_val.get().strip())
         self.cws.repeat_first = self.replicate_first.get()
-        self.cws.imagemagick_path = self.imagemagick_path.get()
+        self.cws.imagemagick_cmd = os.path.join(self.imagemagick_path.get(), self.imagemagick_command)
+        self.cws.use_mask = self.use_mask.get()
+        self.cws.mask_image = self.mask_image.get()
 
         # Open the window and launch the job.
         self.tl.update()
@@ -372,6 +432,8 @@ class Application(ttk.Frame):
         config.set('Honeyguide', 'TemplateCWS', self.template_cws.get())
         config.set('Honeyguide', 'InputImages', self.input_image.get())
         config.set('Honeyguide', 'OutputCWS', self.output_cws.get())
+        config.set('Honeyguide', 'UseMask', str(self.use_mask.get()))
+        config.set('Honeyguide', 'MaskImage', self.mask_image.get())
         config.set('Honeyguide', 'Negate', str(self.negate.get()))
         config.set('Honeyguide', 'Threshold', str(self.threshold.get()))
         config.set('Honeyguide', 'ThreshVal', self.threshold_val.get())
@@ -390,6 +452,8 @@ class Application(ttk.Frame):
             self.template_cws.set(config.get('Honeyguide', 'TemplateCWS'))
             self.input_image.set(config.get('Honeyguide', 'InputImages'))
             self.output_cws.set(config.get('Honeyguide', 'OutputCWS'))
+            self.use_mask.set(config.getboolean('Honeyguide', 'UseMask'))
+            self.mask_image.set(config.get('Honeyguide', 'MaskImage'))
             self.negate.set(config.getboolean('Honeyguide', 'Negate'))
             self.threshold.set(config.getboolean('Honeyguide', 'Threshold'))
             self.threshold_val.set(config.get('Honeyguide', 'ThreshVal'))
@@ -407,6 +471,7 @@ class Application(ttk.Frame):
         self.template_validate()
         self.image_validate()
         self.output_validate()
+        self.mask_validate()
         self.imagemagick_path_validate()
         self.threshold_validate()
 
@@ -426,6 +491,7 @@ class Application(ttk.Frame):
                 self.logfile.flush()
         except:
             pass
+
 
 def main():
     with open("app.log", "w") as logfile:

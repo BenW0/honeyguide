@@ -44,9 +44,9 @@ import tempfile
 import shutil
 import threading
 import Queue
-import time
 import difflib
 
+on_posix = 'posix' in os.name
 
 # regular expressions we'll need:
 re_match_path = re.compile(".*[\\\\/]+(?!.*[\\\\/])")
@@ -57,12 +57,14 @@ class Honeyguide:
     def __init__(self, logfile=None):
         # Status variables used for communicating with the host.
         self.quiet = False
-        self.imagemagick_path = ''
+        self.imagemagick_cmd = 'magick'
         self.negate = False
         self.threshold = False
         self.threshold_val = 0
         self.repeat_first = False
         self.logfile = logfile
+        self.use_mask = False
+        self.mask_image = ''
         
         # background processing variables
         self._thread = None
@@ -97,8 +99,9 @@ class Honeyguide:
         except:
             try:
                 zf.close()
-            finally:
-                return False, "Error opening CWS file.", 0
+            except:
+                pass
+            return False, "Error opening CWS file.", 0
 
         if len(files) > 0:
             return True, "CWS file has %i slices" % len(files), len(files)
@@ -138,6 +141,19 @@ class Honeyguide:
 
         return os.path.exists(path.group())
 
+    @staticmethod
+    def mask_check(input_slice):
+        """Checks whether an image is a valid mask, and returns (valid, message) where
+        valid is a boolean, True if the image stack is valid and False otherwise,
+        message is a message to give to your user, and
+        image_count is the number of successive images found in the same folder."""
+
+        # check that the image file exists
+        if not os.path.exists(input_slice):
+            return False, "File doesn't exist"
+
+        return True, "OK"
+
     def do_honeyguide_background(self, template_cws, input_slice, output_cws):
         """Launches the honeyguide stack replacement process in a background thread. For arguments, see the following
         declaration. This just does that in background. Returns success if the job started.
@@ -172,6 +188,9 @@ class Honeyguide:
           * threshold_val - value to use for the 1/0 transition threshold (0-255)
           * repeat_first - if True, instead of using successively numbered images from input_slice, just repeat the
                            same one over and over again.
+          * use_mask - use a mask image which is multiplied with the input image on each slice to compensate for
+                           projection system irregularities
+          * mask_image - image to use for masking.
 
         Output: Returns (success, message), where success is a boolean and message is a string explaining what went wrong.
 
@@ -185,7 +204,8 @@ class Honeyguide:
         self._percent = 0
 
         try:
-            if not os.path.exists(template_cws) or not os.path.exists(input_slice) or output_cws == '':
+            if not os.path.exists(template_cws) or not os.path.exists(input_slice) or output_cws == '' or \
+                        (self.use_mask and not os.path.exists(self.mask_image)):
                 self._write_message("Invalid input to Honeyguide! One of the input paths is invalid.")
                 self._success = False
                 self._message_final = "Invalid input filenames"     # cancel!
@@ -232,15 +252,24 @@ class Honeyguide:
             #  -negate - invert the image colors
             #  -threshold - threshold at 50% brightness (to deal with gray inputs)
             #  -background - set the background of any unused portion of the frame to black
-            #  -compose - copy new images on top of background pixels
+            #  -compose - operator for use when compositing new images on top of background pixels
             #  -gravity - center the new image on the scene
             #  -extent - size of output image (on which the input image will be composited)
+            #  -composite - command to combine the images
+            #  () - imagemagick groupings. Note that these have to be escaped on *nix shells, so I'll use variables for them
+
+            im_bp = '\\(' if on_posix else '('
+            im_ep = '\\)' if on_posix else ')'
+            imagemagick_prefix = [im_bp]
             imagemagick_flags = []
             if self.negate:
-                imagemagick_flags.append('-negate')
+                imagemagick_flags.extend(['-channel', 'RGB', '-negate'])
             if self.threshold:
-                imagemagick_flags.extend(['-threshold', ('%i'%self.threshold_val) + '%', '-depth', '1'])
-            imagemagick_flags.extend(['-background', 'black', '-compose', 'Copy', '-gravity', 'center', '-extent', sizestr])
+                imagemagick_flags.extend(['-threshold', '%i%%'%self.threshold_val])
+            imagemagick_flags.extend(['-background', 'black', '-compose', 'Copy', '-gravity', 'center', '-extent', sizestr, '-composite', im_ep])
+            if self.use_mask:
+                imagemagick_flags.extend([im_bp, self.mask_image, '-resize', '%s!'%sizestr, im_ep, '-compose',
+                                          'Multiply', '-gravity', 'center', '-composite'])
 
 
             # figure out how long the numbers are (by testing length of result on first slice)
@@ -304,9 +333,13 @@ class Honeyguide:
                 if not self.quiet:
                     self._write_message("Converting slice %i/%i\r" % (cws_id, slice_count))
                 # filter the slice and copy it onto the cws:
-                args = [os.path.join(self.imagemagick_path, "convert"), next_slice]
+                args = [self.imagemagick_cmd]
+                args.extend(imagemagick_prefix)
+                args.append(next_slice)
                 args.extend(imagemagick_flags)
                 args.append(next_cws_out)
+                # TESTING
+                #print(args)
                 if subprocess.call(args, shell=True) != 0:
                     self._write_message("Got an odd return code form ImageMagick. Output CWS may be corrupt, or ImageMagick Install Folder may need to be set.")
                     self._success = False
@@ -348,7 +381,9 @@ class Honeyguide:
             # if we ran out of slice files before we ran out of cws slices, set all remaining cws slices to black.
             blankfile = os.path.join(cws_dir, "blank.png")
             # generate a blank image and save it to blankfile
-            args = ["convert", "-size", sizestr, "xc:black", blankfile]
+            args = [self.imagemagick_cmd, "-size", sizestr, "xc:black", blankfile]
+            # TESTING
+            print(args)
             subprocess.call(args, shell=True)
             while os.path.exists(next_cws_in):
                 if not self.quiet:
@@ -476,7 +511,7 @@ class Honeyguide:
         """
         # gets the size of the image in a form imagemagick can understand
         try:
-            sizestr = subprocess.check_output([os.path.join(self.imagemagick_path, 'convert'), im_name, '-ping', '-format', '"%wx%h"', 'info:'], shell=True)
+            sizestr = subprocess.check_output([self.imagemagick_cmd, im_name, '-ping', '-format', '"%wx%h"', 'info:'], shell=True)
             return sizestr[1:-1]     # trim leading & trailing quotes
         except subprocess.CalledProcessError:
             return ""
@@ -495,7 +530,7 @@ class Honeyguide:
 
         return count
 
-    def compare_cws_files(self, file1, file2, imagemagick_path=""):
+    def compare_cws_files(self, file1, file2, imagemagick_cmd="magick"):
         """Compares two CWS files, checking for differences and storing them in ./<file1 fname>_diff.
         Returns True if the cws files contain identical data (images, gcode, slicing files, and manifest)
         and False otherwise."""
@@ -549,8 +584,8 @@ class Honeyguide:
 
         slice_count = len(imlist1)
 
-        imagemagick_prefix = [os.path.join(imagemagick_path, "compare"), "-metric", "PSNR"]
-        imagemagick_postfix = ["-compose", "src"]
+        imagemagick_prefix = [imagemagick_cmd]
+        imagemagick_postfix = ["-metric", "AE", "-compare", "-format", '"%[distortion]"', 'info:']
 
         # go through the files until we run out of source or destination filenames.
         # Check each pair of frames for matching.
@@ -562,22 +597,33 @@ class Honeyguide:
             args.extend([next_cws_in1, next_cws_in2])
             args.extend(imagemagick_postfix)
             # add the diff file location
-            diffname = "diff%04u.png" % cws_id
-            args.extend([os.path.join(diff_dir, diffname)])
+            diffname = os.path.join(diff_dir, "diff%04u.png" % cws_id)
+            #args.extend([os.path.join(diff_dir, diffname)])
+            # TESTING
+            print('comp = ' + str(args))
 
             # check the output of the imagemagick call
             try:
                 out = subprocess.check_output(args, shell=True, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = e.output
+            # find a number in out
+            match = re.search('[0-9]+',out)
 
-            if "1.#INF" in out:     # This means no difference between the two images
+            if match is not None and match.group() == '0':     # This means no difference between the two images
                 # The two are identical. Delete the diff image.
-                os.remove(os.path.join(diff_dir, diffname))
+                #os.remove(os.path.join(diff_dir, diffname))
                 samecount += 1
             else:
                 diffcount += 1
                 self._log("Found differences: %s" % diffname)
+                # generate a difference image
+                args[-1] = diffname
+
+                try:
+                    subprocess.call(args, shell=True, stderr=subprocess.STDOUT)
+                finally:
+                    pass
 
             # figure out the next filenames based on the current ones.
             cws_id += 1
@@ -623,7 +669,10 @@ class Honeyguide:
             same = False
             
         if same:
-            os.rmdir(diff_dir)
+            try:
+                os.rmdir(diff_dir)
+            except:
+                pass
 
         return same
 
@@ -652,7 +701,6 @@ class Honeyguide:
             return False
 
 # Run some checks to see if my cws files match a reference set
-# TODO: Add some tests that evaluate the different options.
 if __name__ == "__main__":
 
     h = Honeyguide()
@@ -662,7 +710,7 @@ if __name__ == "__main__":
 
     temp_dir = tempfile.mkdtemp()
 
-    h.imagemagick_path = cp.get("General", "imagemagickpath")
+    h.imagemagick_cmd = cp.get("General", "imagemagickcmd")
     h.quiet = True
 
     all_passed = True
@@ -679,6 +727,8 @@ if __name__ == "__main__":
             h.threshold = int(cp.get(test, "threshold"))
             h.threshold_val = int(cp.get(test, "threshval"))
             h.repeat_first = int(cp.get(test, "replicatefirst"))
+            h.use_mask = int(cp.get(test, "usemask"))
+            h.mask_image = cp.get(test, "maskimage")
 
             temp_cws = os.path.join(temp_dir, test + ".cws")
 
@@ -687,7 +737,7 @@ if __name__ == "__main__":
 
             # check the results
             print("Checking %s" % test)
-            if h.compare_cws_files(refcws, temp_cws, h.imagemagick_path):
+            if h.compare_cws_files(refcws, temp_cws, h.imagemagick_cmd):
                 print("%s Passed" % test)
             else:
                 print("%s Failed!" % test)
