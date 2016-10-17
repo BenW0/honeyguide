@@ -11,3 +11,5 @@ settings.ini
 test.cws
 ImageMagick/
 installer/*.exe
+temp.cws
+test.cws

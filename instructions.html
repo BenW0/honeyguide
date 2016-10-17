@@ -48,7 +48,8 @@ Clicking the Show Options button brings up some additional configuration options
     <li><b>Image Mask</b> causes a mask image to be multiplied by the image to be displayed on the projector. This can
         be used to correct for irregularities in projection brightness. In the mask image, a white pixel represents
         "no change" to the source image, gray pixels darken the source image, and a black pixel forces the output image
-        to black at that point.</li>
+        to black at that point. Note that the image mask will be stretched to fit the projector resolution specified by
+        the template CWS slice information.</li>
     <li><b>Negate Input Images</b> inverts the pixel value of the image prior to compositing. This is useful if your
         image source has a white background and black object. Default: Unchecked.</li>
     <li><b>Threshold</b> performs a "threshold" operation on the image before compositing. This means all pixels above

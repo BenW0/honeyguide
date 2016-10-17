@@ -11,17 +11,16 @@ DefaultGroupName=Honeyguide
 UninstallDisplayIcon={app}\Honeyguide.exe
 Compression=lzma2
 SolidCompression=yes
-OutputDir=userdocs:Inno Setup Examples Output
+OutputDir=.
 DisableWelcomePage=True
 AppCopyright=(c) Ben Weiss 2016
 LicenseFile=userdocs:cc\Other\Honeyguide\LICENSE.txt
 
 [Files]
-Source: "dist/*"; DestDir: "{app}"
+Source: "../dist/*"; DestDir: "{app}"; Flags: recursesubdirs
 
 [Icons]
 Name: "{group}\Honeyguide"; Filename: "{app}\Honeyguide.exe"
 
 [UninstallDelete]
-Type: files; Name: "settings.ini"
-Type: files; Name: "app.log"
+Type: filesandordirs; Name: "{userappdata}\Honeyguide"
