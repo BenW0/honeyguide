@@ -46,10 +46,7 @@ CreationWorkshop Scene Files from the list of file types). Generally, your image
 Clicking the Show Options button brings up some additional configuration options for the honeyguide algorithm.
 <ul>
     <li><b>Image Mask</b> causes a mask image to be multiplied by the image to be displayed on the projector. This can
-        be used to correct for irregularities in projection brightness. In the mask image, a white pixel represents
-        "no change" to the source image, gray pixels darken the source image, and a black pixel forces the output image
-        to black at that point. Note that the image mask will be stretched to fit the projector resolution specified by
-        the template CWS slice information.</li>
+        be used to correct for irregularities in projection brightness. See the section "Using a Mask Image" below.</li>
     <li><b>Negate Input Images</b> inverts the pixel value of the image prior to compositing. This is useful if your
         image source has a white background and black object. Default: Unchecked.</li>
     <li><b>Threshold</b> performs a "threshold" operation on the image before compositing. This means all pixels above
@@ -62,6 +59,27 @@ Clicking the Show Options button brings up some additional configuration options
         variable or where other tools have the same name (specifically "convert.exe" on Windows). If errors occur during
         processing, try setting this field to the folder ImageMagick was installed to. Default: Empty</li>
 </ul>
+
+<h3>Using a Mask Image</h3>
+<p>The mask image is a single image (preferably PNG or BMP, but others work too) where each pixel value specifies the
+    relative intensity to use for that part of the final image. If the mask image pixel is white, the slice image pixel is
+    put on the projector unchanged. If the mask pixel is gray, it reduces the intensity of the input image
+    proportionally. A black mask pixel causes the projector to display a black pixel in that location regardless of the
+    slice image.</p>
+<p>Ideally, the mask image you supply should be the same resolution as the projector. If it is not, the code will
+    automatically stretch it to match the projector resolution.</p>
+<p>Mathematically, the mask image is multiplied by each slice image to form the actual image to send to the projector.
+    This multiplication happens pixel by pixel and color channel by color channel, so different corrections
+    for the R, G, and B, that should work fine.</p>
+
+<p>Suppose a slice of your part looks like this:</p>
+<img src="Slice.png">
+<p>And you have concluded your projector is a bit too bright in the center. Your mask image might look like this</p>
+<img src="Mask.png">
+<p>The code would multiply your mask image by each slice image in the stack. This slice would end up looking like this:</p>
+<img src="Result.png">
+<p>Note that black pixels in the slice remain black, but white pixels get "grayed" according to the intensity in the
+    mask image at that point.</p>
 
 <h3>Technical Notes</h3>
 <p>Honeyguide never re-scales the images you provide. They are placed, centered, on a black canvas that matches the resolution
